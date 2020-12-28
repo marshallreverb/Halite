@@ -1,0 +1,28 @@
+
+etape 1 : principe du spawn 
+si nb de ships  <  (entier)10/nbdeShipyard # on peut se baser sur le nb de halite collect
+   on spawn  ship 
+si  shipyard = 0 and ships > 0 : 
+  \tab on convertit ship en shipyard 
+- etape 2 :  Definir l'etat des ships 
+      # cherche la meilleur path 
+       si ship est rempli # etat de depot 
+          cherche le best path to shipyard 
+          check si la direction est occupé 
+          si oui 
+                etat_ship = "WAIT"
+          sinon
+                etat_ship = "Depot"
+        sinon si le ship n'est pas rempli
+            cherche cellule avec le plus de halite 
+          check si la direction est occupé 
+          si oui 
+                etat_ship = "WAIT"
+          sinon
+                etat_ship = "COLLECT"
+-etape 3 : 
+   si le step = 7/8 du step total 
+      tout les Ships  = "DEPOT"
+
+     
+       
