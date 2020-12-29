@@ -8,15 +8,23 @@ from math import *
 # Directions a ship can move[ North ,East , South ,WEST ]
 directions_point = [(0, 1),(1, 0),(0,-1),(-1,0)]
 directions = [ ShipAction.NORTH,ShipAction.EAST,ShipAction.SOUTH,ShipAction.WEST,]
-MAX_RATIO = 13   #Max spawn ship ration
+MAX_RATIO = 15   #Max spawn ship ration
 TOTALSTEPS = 400
 MAX_SHIPYARD_DIST = 5
-MAX_SHIPYARD = 5
-MAX_COLLECT = 220
-MAX_halit_cell = 35
+MAX_SHIPYARD = 4
+MAX_COLLECT = 300
+MAX_halit_cell = 120
+MAX_SPAWN_STEP = 250
 # Will keep track of whether a ship is collecting halite or carrying cargo to a shipyard or 
 ship_states = {}
-pending_ship = {}
+
+
+def Strat_para(step):
+    
+    if step > 200:
+        MAX_halit_cell = 70
+        MAX_COLLECT = 350
+
 
 def is_occupy_shipyard(ships,shipyard):
     for ship in ships:
@@ -35,10 +43,10 @@ def is_occupy_cell(cell,ships):
 def getDirTo(fromPos, toPos, size):
     fromX, fromY = divmod(fromPos[0],size), divmod(fromPos[1],size)
     toX, toY = divmod(toPos[0],size), divmod(toPos[1],size)
-    if fromY < toY: return ShipAction.NORTH
-    if fromY > toY: return ShipAction.SOUTH
-    if fromX < toX: return ShipAction.EAST
-    if fromX > toX: return ShipAction.WEST
+    if fromY < toY: return choice([ShipAction.EAST,ShipAction.NORTH])
+    if fromY > toY: return choice([ShipAction.EAST,ShipAction.SOUTH])
+    if fromX < toX: return choice([ShipAction.EAST,ShipAction.SOUTH])
+    if fromX > toX: return choice([ShipAction.WEST,ShipAction.SOUTH])
 
 def convert_to_point(Action):
     if Action == ShipAction.NORTH :return (0, 1)
@@ -62,10 +70,10 @@ def is_ready_to_move(cell,MAX_halit_cell):
     return False
 
 def Direction_invert(Action):
-    if Action == ShipAction.NORTH :return ShipAction.EAST
-    if Action == ShipAction.EAST :return ShipAction.SOUTH
-    if Action == ShipAction.SOUTH :return ShipAction.WEST
-    if Action == ShipAction.WEST: return ShipAction.NORTH
+    if Action == ShipAction.NORTH :return choice([ShipAction.EAST,ShipAction.SOUTH])
+    if Action == ShipAction.EAST :return choice([ShipAction.NORTH,ShipAction.SOUTH])
+    if Action == ShipAction.SOUTH :return choice([ShipAction.EAST,ShipAction.WEST])
+    if Action == ShipAction.WEST: return choice([ShipAction.SOUTH,ShipAction.EAST])
 
 def destroyed_ship(ship_ids,ship_states):
     for ship_id in ship_states:
@@ -142,10 +150,10 @@ def closest_dist(player,ship):
         i = i + 1
     return index_
 
-def Collect(ship,target,player,shp_index):
+def Collect(ship,target,player,shp_index,pending_ship):
      
                 if is_ready_to_move(ship.cell,MAX_halit_cell):
-                    surr_halite = [ship.cell.north.halite,ship.cell.east.halite,ship.cell.south.halite,ship.cell.west.halite]
+                    surr_halite = [ship.cell.east.halite,ship.cell.north.halite,ship.cell.south.halite,ship.cell.west.halite]
                     maxi = max(range(len(surr_halite)), key=surr_halite.__getitem__)
                     mini = min(range(len(surr_halite)), key=surr_halite.__getitem__)
                     best = choice([maxi,mini])
@@ -161,17 +169,15 @@ def Collect(ship,target,player,shp_index):
                     ship_states[ship.id] = "COLLECT"    
                     pending_ship[ship.id] = ship.position
 
-def Deposit(player,shipyd_idx,target,ship_states,ship,size):
+def Deposit(player,shipyd_idx,target,ship_states,ship,size,pending_ship,step):
      # randomly assign the shipyard
-               # if len(player.shipyards) > 1:
-                #    shipyard_indx = choice(range(0,(len(player.shipyards))))
+                
+                rndm = choice(range(0,(len(player.shipyards))))
+                close = closest_dist(player,ship)  
+                shipyard_indx = choice([close,rndm,close])   
 
-               # else :
-                #    shipyard_indx = shipyd_idx            
                 #init
-                # 
-                shipyard_indx = closest_dist(player,ship)           
-                #init
+                # #
                 #  
                 target_pos = 0
                 next_action = 0 
@@ -185,11 +191,15 @@ def Deposit(player,shipyd_idx,target,ship_states,ship,size):
                 if next_action != 0 :
                     target[ship.id] = target_pos 
                     ship.next_action = next_action
-                else:
-                    ship_states[ship.id] = "PENDING"
-                    pending_ship[ship.id] = ship.position
+                else :
+                    move = Direction_invert(moves[len(moves)-1])
+                    target_pos = calculate_pos(ship.position,convert_to_point(move))
+                    if target_pos not in target.values() and not is_occupy_cell(target_pos,player.ships) and not is_occupy_shipyard(player.ships,player.shipyards[shipyard_indx]):
+                        next_action = move
+                        
+                    
 
-def DepositE(player,shipyd_idx,target,ship_states,ship,size):
+def DepositE(player,shipyd_idx,target,ship_states,ship,size,pending_ship):
      # randomly assign the shipyard
                # if len(player.shipyards) > 1:
                 #    shipyard_indx = choice(range(0,(len(player.shipyards))))
@@ -207,7 +217,7 @@ def DepositE(player,shipyd_idx,target,ship_states,ship,size):
                 moves   = get_unsafe_moves(size,ship.position,player.shipyards[shipyard_indx].position)
                 for move in moves:
                     target_pos = calculate_pos(ship.position,convert_to_point(move))
-                    if target_pos not in target.values() and  is_occupy_cell(target_pos,player.ships) or target_pos == player.shipyards[shipyard_indx].position :
+                    if target_pos not in target.values() and not is_occupy_cell(target_pos,player.ships) or target_pos == player.shipyards[shipyard_indx].position :
                         next_action = move
                         break
                 if next_action != 0 :
@@ -226,19 +236,23 @@ def agent(obs, config):
     board = Board(obs, config)
     me = board.current_player
     end_sy = (len(me.shipyards)-1)
+    pending_ship = {}
+    Strat_para(board.step)
     #Beginning SHIPyard convert
     if len(me.shipyards) == 0 and len(me.ships) > 0 :
         me.ships[0].next_action = ShipAction.CONVERT
     
     #SPAWN
     
-    if len(me.shipyards) != 0 :
-        rd_sy = choice(range(0,end_sy+1))
-        if  len(me.ships) < int(MAX_RATIO*(len(me.shipyards)) ) and not is_occupy_shipyard(me.ships,me.shipyards[rd_sy]) and board.step < 300:
+    if len(me.shipyards) != 0 and board.step < 310:
+        rd_sy = 0
+        while rd_sy < len(me.shipyards) and not is_occupy_shipyard(me.ships,me.shipyards[rd_sy])  :
             me.shipyards[rd_sy].next_action = ShipyardAction.SPAWN
-     
+            rd_sy = rd_sy+1
 
-    if board.step > int(TOTALSTEPS/7.5) and len(me.shipyards) != 0 and len(me.shipyards) < MAX_SHIPYARD:
+
+
+    if board.step > int(TOTALSTEPS/8.5) and len(me.shipyards) != 0 and len(me.shipyards) < MAX_SHIPYARD:
         for ship in me.ships :
             if req_dis(me,ship):
                 ship.next_action = ShipAction.CONVERT
@@ -262,21 +276,27 @@ def agent(obs, config):
            
 
             if ship_states.get(ship.id) == "COLLECT":
-                Collect(ship,target,me,end_sy)
+                Collect(ship,target,me,end_sy,pending_ship)
 
             if ship_states.get(ship.id) == "DEPOSIT": 
-               Deposit(me,end_sy,target,ship_states,ship,size)
+               Deposit(me,end_sy,target,ship_states,ship,size,pending_ship,board.step)
             
             if ship_states.get(ship.id) == "DEPOSITE": 
-               DepositE(me,end_sy,target,ship_states,ship,size)
+               DepositE(me,end_sy,target,ship_states,ship,size,pending_ship)
             
 
             if ship_states.get(ship.id) == "PENDING":
+                idx = None
                 for ship_id in pending_ship:
                     if ship.id == ship_id : 
                         next_offset = getDirTo(ship.position,pending_ship.get(ship_id),size)
                         ship.next_action = next_offset
                         ship_states[ship.id] = "COLLECT"
+                        idx = ship_id
+                        break
+                if idx :
+                    pending_ship.pop(ship_id)
+
                     
 
     #print("Step : "+ str(board.step))

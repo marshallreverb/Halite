@@ -2,7 +2,7 @@
 etape 1 : principe du spawn 
 si nb de ships  <  (entier)10/nbdeShipyard # on peut se baser sur le nb de halite collect
    on spawn  ship 
-si  shipyard = 0 and ships > 0 : 
+si  shipyard = 0 andz ships > 0 : 
   \tab on convertit ship en shipyard 
 - etape 2 :  Definir l'etat des ships 
       # cherche la meilleur path 
